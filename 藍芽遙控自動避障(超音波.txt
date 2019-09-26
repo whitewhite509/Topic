@@ -1,0 +1,371 @@
+#include "SM59R16G6.h"
+void FORWARD(void); 	//前進
+void BACKWARD(void);	//退後
+void TURNLEFT(void);		//左轉
+void TURNRIGHT(void);	//右轉
+void STOP(void);			//停止
+
+void Ultrasonic(void);			//超音波感測
+void Behind_infrared(void);		//後面紅外線
+void RIGHT_infrared(void)	;	//右邊紅外線
+void left_infrared(void)	;		//左邊紅外線
+void front_infrared(void);		//前進紅外線
+
+void CONV_TO_RAM(); 		//超音波測距
+unsigned char data TH_BUF;             
+unsigned char data TL_BUF;                  
+unsigned  long  DIS;                                                    
+
+void KeyScan(void);	//按鍵
+void scan(void);		//超音波
+void delay(int);		//delay
+void init_UART();		//宣告副程式 串列埠的參數設定
+
+int count_T0=20; 		//計時器參數設定
+char c=0; 			//超音波字串設定
+unsigned char key;		//藍芽字串設定
+
+char one=0;			//按鍵內使用變數
+char zero=0;
+unsigned char KeyTemp=0xff;
+unsigned char KeyData=0xff;
+
+
+int main()				//主程式
+{
+	void KeyScan(void);
+		
+	PCON&=0x7f;		//init_UART();	
+	TH1=255-5;		
+  	SCON=0x50;
+	EA=1;
+	ET1=1;
+ 	TR1=1;
+	TMOD=0x21;
+	IE=0x90;
+	
+	
+	ET0=1;				//Timer時間設定
+	TH0=(65536-500)/256;
+	TL0=(65536-500)%256;
+	TR0=1;
+	
+	while(1)
+	{
+	if(P1_0==0&&P1_1==0&&P1_2==0&&P1_3==0)
+	{	
+			scan();		//觸發超音波10us信號
+					switch (key) 
+				{		//接收到藍芽指令後的動作設定
+				case 'A':
+						FORWARD();		
+						Ultrasonic();	
+						
+						front_infrared();
+						left_infrared();
+						RIGHT_infrared();
+						break;
+				
+				case 'B':
+						BACKWARD();
+						if(count_T0==0) 
+						{
+							key='S';
+							count_T0=20;
+						}
+						Ultrasonic();
+						Behind_infrared();
+						break;
+				
+				case 'C':
+						TURNLEFT();
+				if(count_T0==0) 
+						{
+							key='S';
+							count_T0=20;
+						}
+						
+						Ultrasonic();
+						front_infrared();
+						left_infrared();
+						RIGHT_infrared();
+						break;
+				
+				case 'D':
+						TURNRIGHT();
+						if(count_T0==0) 
+						{
+							key='S';
+							count_T0=20;
+						}
+						Ultrasonic();
+						front_infrared();
+						left_infrared();
+						RIGHT_infrared();
+						break;
+				
+				case 'S':
+						STOP();
+						Ultrasonic();
+						Behind_infrared();
+						front_infrared();
+						left_infrared();
+						RIGHT_infrared();
+						break;
+				}
+	}
+			else if(P1_0==1&&P1_1==1&&P1_2==1&&P1_3==1)
+			{
+			STOP();
+					
+			}	
+		}
+}
+	
+	
+void FORWARD(void)		
+{
+		P0=0x6A;		//前進
+		P2_7=0;
+		P2_6=0;
+}
+
+
+void BACKWARD(void)	
+{
+		P0=0x9C;		//後退
+		P3_2=0;
+		P3_3=0;
+}
+
+
+void TURNLEFT(void)		
+{
+		P0=0x5A;		//左轉
+		P2_7=0;
+		P3_2=0;
+}
+
+void TURNRIGHT(void)	
+{
+		P0=0xAA;		//右轉
+		P2_6=0;
+		P3_3=0;
+}
+
+
+void STOP(void)			
+{
+		P0=0x0A;		//停止
+		P3_2=1;			//燈全關
+		P3_3=1;
+		P2_6=1;
+		P2_7=1;
+}
+
+
+void Ultrasonic(void)	//超音波感測
+{
+
+if(P2_2==0)
+			{
+			 CONV_TO_RAM();
+				
+			}
+			
+}
+
+
+void Behind_infrared(void)			//後面紅外線
+{
+	 if(P1_3==1)
+	{
+		P0=0x0C;
+		if(count_T0==0) 
+		{
+			key='S';	
+			count_T0=20;
+		}
+		P0=0x6A;
+		if(count_T0==0) 
+		{
+			key='D';
+			count_T0=20;
+		}			
+	}
+}	
+
+		
+void RIGHT_infrared(void)		//右邊紅外線
+{	
+	 if(P1_2==1)
+	{
+		P0=0x0c;
+		if(count_T0==0) 
+		{
+			key='S';	
+			count_T0=20;
+		}
+		P0=0x9A;
+		if(count_T0==0) 
+		{
+			key='D';
+			count_T0=20;
+		}		
+	}				
+}
+
+
+	void front_infrared(void)		//前面紅外線
+{
+	 if(P1_1==1)
+	{
+		P0=0x0c;
+		if(count_T0==0) 
+		{
+			key='S';	
+			count_T0=20;
+		}
+						
+		P0=0x9A;
+		if(count_T0==0) 
+		{
+			key='D';
+			count_T0=20;
+		}			
+				
+	}
+}		
+
+
+void left_infrared(void)				//左邊紅外線
+{
+	if(P1_0==1)
+	{
+		P0=0x0c;
+		if(count_T0==0) 
+		{
+			key='S';	
+			count_T0=20;
+		}
+		P0=0x9A;
+		if(count_T0==0) 
+		{
+			key='D';
+			count_T0=20;
+		}			
+	}
+}
+
+
+
+void scon_int() interrupt 4			//RI,TI的傳輸和接收
+{
+if(RI==1)
+{
+RI=0;
+key =SBUF; 
+}
+else
+{
+TI=0;
+}
+} 
+
+
+void KeyScan(void)  				//按鍵設定
+{
+  unsigned char KeyStatus;
+  P1&=0xf0;
+  P1|=0x0f;
+  KeyStatus=~P3; 
+  KeyStatus&=0x0f;  
+  if(KeyStatus!=0)
+     {	
+       one=0;
+       if(KeyTemp!=KeyStatus)
+       {
+		  KeyTemp=KeyStatus;
+		  zero=1;		
+	   }  
+       else    
+	   {
+	     if(zero<5)
+	     {
+           zero+=1;
+ 	       if(zero==5)
+	         KeyData=KeyTemp;
+	     }		
+	   }	
+	 }	
+   one+=1;
+   if(one==5)
+	{		
+     zero=0;
+     KeyTemp=0xff;
+     KeyData=0xff;
+	}		
+	
+	if(KeyData!=0xff)
+	{
+		P3^=KeyData;
+		KeyData=0xff;
+	}	
+} 
+
+
+void scan(void)  				//超音波設定
+{
+	char A1;
+	c=0;
+	for(A1=0;A1<10;A1++)
+	{
+	P2_1=1;
+	delay(10);
+	P2_1=0;
+	delay(750);
+	}
+}
+
+
+void delay(int count) 			//delay
+{
+	int i;
+	for(i=0; i<count; i++);
+}
+
+
+
+void T0_ls(void) interrupt 1  	//計時器
+{
+	if(count_T0)
+	count_T0--;
+}
+
+
+void init_UART()				//串列埠的參數設定
+{
+	PCON&=0x7f;
+	TH1=255-5;		
+  SCON=0x50;
+	EA=1;
+	ET1=1;
+  TR1=1;
+	TMOD=0x21;
+	IE=0x90;
+}
+
+
+void CONV_TO_RAM() 		//超音波測距
+{ 
+TH_BUF=TH0; 
+TL_BUF=TL0; 
+DIS= TH_BUF*256+TL_BUF; 
+DIS=DIS*1.085/58; 
+	if ( DIS <= 8) 
+{    
+		P0=0x0A;	
+} 
+else
+	P0=0x5A;	
+}
